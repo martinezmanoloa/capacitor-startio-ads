@@ -17,12 +17,15 @@ import com.startapp.sdk.ads.banner.Mrec;
 import com.startapp.sdk.ads.nativead.StartAppNativeAd;
 import com.startapp.sdk.ads.nativead.NativeAdPreferences;
 import com.startapp.sdk.ads.nativead.NativeAdDetails;
-import com.startapp.sdk.ads.nativead.AdNativeListener;
+
 
 import android.view.ViewGroup;
 import android.view.View;
 import android.widget.RelativeLayout;
 import android.view.Gravity;
+
+import java.util.List;
+import java.util.ArrayList;
 
 @CapacitorPlugin(name = "StartioAds")
 public class StartioAdsPlugin extends Plugin {
@@ -87,7 +90,7 @@ public class StartioAdsPlugin extends Plugin {
 
             rewardedAd.setVideoListener(new VideoListener() {
                 @Override
-                public void onVideoComplete() {
+                public void onVideoCompleted() {
                     JSObject ret = new JSObject();
                     ret.put("earned", true);
                     notifyListeners("rewardedVideoEarned", ret, true);
@@ -245,11 +248,13 @@ public class StartioAdsPlugin extends Plugin {
         getActivity().runOnUiThread(() -> {
             StartAppNativeAd nativeAd = new StartAppNativeAd(getActivity());
 
-            AdNativeListener adNativeListener = new AdNativeListener() {
+            AdEventListener adNativeListener = new AdEventListener() {
                 @Override
                 public void onReceiveAd(Ad ad) {
                     try {
-                        NativeAdDetails nativeAdDetails = nativeAd.getNativeAd().get(0);
+                        // StartAppNativeAd loadedAd = (StartAppNativeAd) ad;
+                        ArrayList<NativeAdDetails> nativeAds = nativeAd.getNativeAds();
+                        NativeAdDetails nativeAdDetails = nativeAds.get(0);
 
                         JSObject adData = new JSObject();
                         adData.put("title", nativeAdDetails.getTitle());
