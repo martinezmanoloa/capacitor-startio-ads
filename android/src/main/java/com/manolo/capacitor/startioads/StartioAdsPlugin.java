@@ -17,7 +17,7 @@ import com.startapp.sdk.ads.banner.Mrec;
 import com.startapp.sdk.ads.nativead.StartAppNativeAd;
 import com.startapp.sdk.ads.nativead.NativeAdPreferences;
 import com.startapp.sdk.ads.nativead.NativeAdDetails;
-
+import com.startapp.sdk.adsbase.AutoInterstitialPreferences;
 
 import android.view.ViewGroup;
 import android.view.View;
@@ -35,56 +35,211 @@ public class StartioAdsPlugin extends Plugin {
     private Banner bannerView;
     private Mrec mrecView;
     private StartAppAd rewardedAd;
+    private StartAppAd interstitialAd;
 
-    // @PluginMethod
-    // public void echo(PluginCall call) {
-    //     String value = call.getString("value");
-
-    //     JSObject ret = new JSObject();
-    //     ret.put("value", implementation.echo(value));
-    //     call.resolve(ret);
-    // }
-
-    // --- Methods Interstitial Ads ---
+    /**
+     * 
+     * Methods init Start.io Ad
+     */
     @PluginMethod
-    public void initialize(PluginCall call) {
+    public void initParams(PluginCall call) {
         String appId = call.getString("appId");
 
         if (appId == null || appId.isEmpty()) {
-            call.reject("Missed 'appId' from Start.io.");
+            call.reject("Code 1: Missed 'appId' from Start.io");
             return;
         }
+        boolean returnAd = call.getBoolean("returnAd", Boolean.FALSE);
 
-        StartAppSDK.init(getContext().getApplicationContext(), appId, false);
+        StartAppSDK.init(getContext().getApplicationContext(), appId, returnAd);
         call.resolve();
     }
 
-    // Displays a standard full-screen ad
+    /**
+     * 
+     * Methods Interstitial Ad
+     */
+    // --- Load Interstitial Ad
     @PluginMethod
-    public void showInterstitial(PluginCall call) {
+    public void loadInterstitialAd(PluginCall call) {
         getActivity().runOnUiThread(() -> {
-            StartAppAd.showAd(getActivity());
+            if (interstitialAd == null) {
+                interstitialAd = new StartAppAd(getActivity());
+            }
+
+            interstitialAd.loadAd(new AdEventListener() {
+                @Override
+                public void onReceiveAd(Ad ad) {
+                    call.resolve(new JSObject().put("status", "loaded"));
+                }
+
+                @Override
+                public void onFailedToReceiveAd(Ad ad) {
+                    String error = ad != null ? ad.getErrorMessage() : "Unknown error";
+                    call.reject("Code 2: Error loading Interstitial Ad: " + error);
+                }
+            });
+        });
+    }
+
+    // --- Show Interstitial Ad
+    @PluginMethod
+    public void showInterstitialAd(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            if (interstitialAd != null && interstitialAd.isReady()) {
+                interstitialAd.showAd(new AdDisplayListener() {
+                    @Override
+                    public void adHidden(Ad ad) {
+                        // Closed ad
+                        interstitialAd = null;
+                    }
+
+                    @Override
+                    public void adDisplayed(Ad ad) {
+                        // Ad show
+                    }
+
+                    @Override
+                    public void adClicked(Ad ad) {
+                        // Ad click
+                    }
+
+                    @Override
+                    public void adNotDisplayed(Ad ad) {
+                        call.reject("Code 3: The Interstitial Ad could not be displayed " + ad.getErrorMessage());
+                    }
+                });
+                call.resolve();
+            } else {
+                call.reject("Code 4: The interstitial ad is not ready. Please first call 'loadInterstitialAd'.");
+            }
+        });
+    }
+
+    // --- Enable Exit Ad
+    @PluginMethod
+    public void enableExitAd(PluginCall call) {
+        // Enable the flag so that handleOnBackPressed() can display the Exit Ad
+        exitAdEnabled = true;
+        call.resolve();
+    }
+
+    // --- Disable Exit Ad
+    @PluginMethod
+    public void disableExitAd(PluginCall call) {
+        // Disable the flag so that handleOnBackPressed() ignores the Exit Ad logic
+        exitAdEnabled = false;
+        call.resolve();
+    }
+
+    // --- Overwrites Capacitor's back button handling
+    @Override
+    public void handleOnBackPressed() {
+        if (exitAdEnabled) {
+            if (StartAppAd.onBackPressed(getActivity())) {
+                return;
+            }
+        }
+
+        super.handleOnBackPressed();
+    }
+
+    // --- Autostitials Ad
+    @PluginMethod
+    public void autoInterstitial(PluginCall call) {
+        boolean enabled = call.getBoolean("enabled", Boolean.FALSE);
+
+        getActivity().runOnUiThread(() -> {
+            if (enabled) {
+                StartAppAd.enableAutoInterstitial();
+            }
             call.resolve();
         });
     }
 
-    // Enables ads that appear when the user
-    // presses "back" to exit the app
+    // --- Time Frequency Ad
+    // Note: Hybric frameworks "Activity change" is limited (since there is only one
+    // native activity)
     @PluginMethod
-    public void enableExitAd(PluginCall call) {
-        StartAppSDK.enableReturnAds(true);
-        call.resolve();
+    public void interstitialTimeFrequency(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            AutoInterstitialPreferences preferences = new AutoInterstitialPreferences();
+            boolean settingApplied = false;
+
+            Integer seconds = call.getInt("secondsBetweenAds");
+            if (seconds != null && seconds > 0) {
+                preferences.setSecondsBetweenAds(seconds);
+                settingApplied = true;
+            }
+
+            Integer activities = call.getInt("activitiesBetweenAds");
+            if (activities != null && activities > 0) {
+                preferences.setActivitiesBetweenAds(activities);
+                settingApplied = true;
+            }
+
+            if (settingApplied) {
+                StartAppAd.setAutoInterstitialPreferences(preferences);
+                call.resolve();
+            } else {
+                call.reject(
+                        "Code 5: You must provide 'secondsBetweenAds' or 'activitiesBetweenAds' with a positive value");
+            }
+        });
+    }
+
+    /**
+     * 
+     * Methods Banner Ad
+     */
+    @PluginMethod
+    public void showBannerAd(PluginCall call) {
+        String position = call.getString("position", "BOTTOM");
+
+        getActivity().runOnUiThread(() -> {
+            getAdViewContainer();
+
+            if (bannerView != null) {
+                adViewContainer.removeView(bannerView);
+                bannerView = null;
+            }
+
+            bannerView = new Banner(getActivity());
+
+            RelativeLayout.LayoutParams bannerParams = new RelativeLayout.LayoutParams(
+                    RelativeLayout.LayoutParams.WRAP_CONTENT,
+                    RelativeLayout.LayoutParams.WRAP_CONTENT);
+
+            bannerParams.addRule(RelativeLayout.CENTER_HORIZONTAL);
+
+            if ("TOP".equals(position)) {
+                bannerParams.addRule(RelativeLayout.ALIGN_PARENT_TOP);
+            } else {
+                bannerParams.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+            }
+
+            adViewContainer.addView(bannerView, bannerParams);
+            call.resolve();
+        });
     }
 
     @PluginMethod
-    public void disableExitAd(PluginCall call) {
-        StartAppSDK.enableReturnAds(false);
-        call.resolve();
+    public void hideBannerAd(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            if (bannerView != null) {
+                adViewContainer.removeView(bannerView);
+                bannerView = null;
+            }
+            call.resolve();
+        });
     }
 
-    // --- Methods Rewarded Video Ads ---
+    /**
+     * 
+     * Methods Rewarded Video Ad
+     */
     @PluginMethod
-    public void loadRewarded(PluginCall call) {
+    public void loadRewardedVideoAd(PluginCall call) {
         getActivity().runOnUiThread(() -> {
             rewardedAd = new StartAppAd(getActivity());
 
@@ -110,7 +265,7 @@ public class StartioAdsPlugin extends Plugin {
                     JSObject ret = new JSObject();
                     ret.put("error", error);
                     notifyListeners("rewardedVideoFailed", ret, true);
-                    call.reject("Error al cargar rewarded ad: " + error);
+                    call.reject("Code 6: Error loading rewarded ad: " + error);
                 }
             };
 
@@ -119,7 +274,7 @@ public class StartioAdsPlugin extends Plugin {
     }
 
     @PluginMethod
-    public void showRewarded(PluginCall call) {
+    public void showRewardedVideoAd(PluginCall call) {
         getActivity().runOnUiThread(() -> {
             if (rewardedAd != null && rewardedAd.isReady()) {
                 AdDisplayListener displayListener = new AdDisplayListener() {
@@ -142,7 +297,7 @@ public class StartioAdsPlugin extends Plugin {
                     @Override
                     public void adNotDisplayed(Ad ad) {
                         String error = ad != null ? ad.getErrorMessage() : "Unknown error";
-                        call.reject("The ad could not be displayed: " + error);
+                        call.reject("Code 7: The ad could not be displayed: " + error);
                     }
                 };
 
@@ -150,55 +305,15 @@ public class StartioAdsPlugin extends Plugin {
                 call.resolve();
 
             } else {
-                call.reject("El rewarded ad no está listo. ¿Llamaste a 'loadRewarded' primero?");
+                call.reject("Code 8: The rewarded ad isn't ready. Did you call 'loadRewarded' first?");
             }
         });
     }
-    
-    // --- Method Banner Ads ---
-    @PluginMethod
-    public void showBanner(PluginCall call) {
-        String position = call.getString("position", "BOTTOM");
 
-        getActivity().runOnUiThread(() -> {
-            getAdViewContainer();
-
-            if (bannerView != null) {
-                adViewContainer.removeView(bannerView);
-                bannerView = null;
-            }
-
-            bannerView = new Banner(getActivity());
-
-            RelativeLayout.LayoutParams bannerParams = new RelativeLayout.LayoutParams(
-                    RelativeLayout.LayoutParams.WRAP_CONTENT,
-                    RelativeLayout.LayoutParams.WRAP_CONTENT);
-            
-            bannerParams.addRule(RelativeLayout.CENTER_HORIZONTAL);
-
-            if ("TOP".equals(position)) {
-                bannerParams.addRule(RelativeLayout.ALIGN_PARENT_TOP);
-            } else {
-                bannerParams.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
-            }
-
-            adViewContainer.addView(bannerView, bannerParams);
-            call.resolve();
-        });
-    }
-
-    @PluginMethod
-    public void hideBanner(PluginCall call) {
-        getActivity().runOnUiThread(() -> {
-            if (bannerView != null) {
-                adViewContainer.removeView(bannerView);
-                bannerView = null;
-            }
-            call.resolve();
-        });
-    }
-
-    // --- Method MRec Ads ---
+    /**
+     * 
+     * Methods MRec Ad
+     */
     @PluginMethod
     public void showMrec(PluginCall call) {
         String position = call.getString("position", "BOTTOM");
@@ -215,7 +330,7 @@ public class StartioAdsPlugin extends Plugin {
             RelativeLayout.LayoutParams mrecParams = new RelativeLayout.LayoutParams(
                     RelativeLayout.LayoutParams.WRAP_CONTENT,
                     RelativeLayout.LayoutParams.WRAP_CONTENT);
-            
+
             mrecParams.addRule(RelativeLayout.CENTER_HORIZONTAL);
 
             if ("TOP".equals(position)) {
@@ -240,7 +355,10 @@ public class StartioAdsPlugin extends Plugin {
         });
     }
 
-    // --- Method de Native Ads ---
+    /**
+     * 
+     * Methods Native Ad
+     */
     // NOTE: This only LOADS the ad data.
     // You are responsible for RENDERING them in your Ionic UI.
     @PluginMethod
@@ -267,14 +385,14 @@ public class StartioAdsPlugin extends Plugin {
                         call.resolve(adData);
 
                     } catch (Exception e) {
-                        call.reject("Error al procesar el native ad: " + e.getMessage());
+                        call.reject("Code 9: Error processing native ad: " + e.getMessage());
                     }
                 }
 
                 @Override
                 public void onFailedToReceiveAd(Ad ad) {
                     String error = ad != null ? ad.getErrorMessage() : "Unknown error";
-                    call.reject("Error al cargar Native Ad: " + error);
+                    call.reject("Code 10: Error loading Native Ad: " + error);
                 }
             };
 
@@ -282,13 +400,12 @@ public class StartioAdsPlugin extends Plugin {
         });
     }
 
-
-    // --- Funciones Auxiliares ---
     /**
-    * This is the "magic" for Banners/MRec.
-    * Creates a RelativeLayout that floats *above* the Capacitor WebView,
-    * allowing us to anchor native views (like banners) to it.
-    */
+     * Functions Aux
+     * This is the "magic" for Banners/MRec.
+     * Creates a RelativeLayout that floats *above* the Capacitor WebView,
+     * allowing us to anchor native views (like banners) to it.
+     */
     private void getAdViewContainer() {
         if (adViewContainer != null) {
             adViewContainer.bringToFront();
@@ -296,12 +413,12 @@ public class StartioAdsPlugin extends Plugin {
         }
 
         adViewContainer = new RelativeLayout(getActivity());
-        
+
         RelativeLayout.LayoutParams containerParams = new RelativeLayout.LayoutParams(
                 RelativeLayout.LayoutParams.MATCH_PARENT,
                 RelativeLayout.LayoutParams.MATCH_PARENT);
         adViewContainer.setLayoutParams(containerParams);
-        
+
         adViewContainer.setClickable(false);
         adViewContainer.setFocusable(false);
 
