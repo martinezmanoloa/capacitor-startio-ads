@@ -37,7 +37,7 @@ export interface StartioAdListeners {
 
   /**
    * Fires when a rewarded ad is loaded
-   * and ready to be shown with `showRewarded()`.
+   * and ready to be shown with `showRewardedVideoAd()`.
    */
   rewardedVideoLoaded: () => void;
 
@@ -62,17 +62,34 @@ export interface StartioAdsPlugin {
    * Initializes the Start.io SDK.
    * Must be called once when the app starts.
    */
-  initialize(options: { appId: string }): Promise<void>;
+  initParams(options: {
+    appId: string;
+    /**
+     * @default false
+     */
+    returnAd?: boolean;
+    /**
+     * @default true
+     */
+    enableTest?: boolean;
+  }): Promise<void>;
 
   // --- Interstitials ---
   /**
-   * Shows a standard interstitial (full-screen) ad.
+   * Loads an interstitial ad.
+   * Resolves with { status: 'loaded' } when the ad is ready.
    */
-  showInterstitial(): Promise<void>;
+  loadInterstitialAd(): Promise<{ status: 'loaded' }>;
+
+  /**
+   * Shows a pre-loaded interstitial ad.
+   * Call 'loadInterstitialAd' first.
+   */
+  showInterstitialAd(): Promise<void>;
 
   /**
    * Enables the "Exit Ad".
-   * The SDK will show an ad when the user presses "back"
+   * The SDK will try to show an ad when the user presses "back"
    * to exit the application.
    */
   enableExitAd(): Promise<void>;
@@ -82,35 +99,54 @@ export interface StartioAdsPlugin {
    */
   disableExitAd(): Promise<void>;
 
+  /**
+   * Enables or disables Autostitial Ads.
+   */
+  autoInterstitialAd(options: { enabled: boolean }): Promise<void>;
+
+  /**
+   * Sets the time or activity frequency for Autostitial Ads.
+   */
+  interstitialTimeFrequencyAd(options: {
+    /**
+     * Minimum time interval between ads (in seconds).
+     */
+    secondsBetweenAds?: number;
+    /**
+     * Minimum number of activities between ads.
+     */
+    activitiesBetweenAds?: number;
+  }): Promise<void>;
+
   // --- Rewarded Video ---
   /**
    * Loads a rewarded video ad.
    * You must listen for the 'rewardedVideoLoaded' event
-   * before calling 'showRewarded()'.
+   * before calling 'showRewardedVideoAd()'.
    */
-  loadRewarded(): Promise<void>;
+  loadRewardedVideoAd(): Promise<void>;
 
   /**
    * Shows a rewarded ad that has already been loaded.
    * You must listen for the 'rewardedVideoEarned' event
    * to know when to give the reward to the user.
    */
-  showRewarded(): Promise<void>;
+  showRewardedVideoAd(): Promise<void>;
 
   // --- Banner Ads ---
   /**
    * Shows a Banner ad.
    */
-  showBanner(options?: AdViewOptions): Promise<void>;
+  showBannerAd(options?: AdViewOptions): Promise<void>;
 
   /**
    * Hides and destroys the Banner ad.
    */
-  hideBanner(): Promise<void>;
+  hideBannerAd(): Promise<void>;
 
   // --- MRec Ads ---
   /**
-   * Shows an MRec (Medium Rectangle) ad.
+   * Shows an MRec (Medium Rectangle 300px x 250px) ad.
    */
   showMrec(options?: AdViewOptions): Promise<void>;
 
