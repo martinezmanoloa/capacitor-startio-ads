@@ -20,11 +20,9 @@ import com.startapp.sdk.ads.nativead.NativeAdDetails;
 import com.startapp.sdk.adsbase.AutoInterstitialPreferences;
 
 import android.view.ViewGroup;
-import android.view.View;
 import android.widget.RelativeLayout;
-import android.view.Gravity;
+import androidx.activity.OnBackPressedCallback;
 
-import java.util.List;
 import java.util.ArrayList;
 
 @CapacitorPlugin(name = "StartioAds")
@@ -36,6 +34,37 @@ public class StartioAdsPlugin extends Plugin {
     private Mrec mrecView;
     private StartAppAd rewardedAd;
     private StartAppAd interstitialAd;
+
+    private OnBackPressedCallback backPressedCallback;
+    private boolean isExitAdEnabled = false;
+
+    /**
+     * Capacitor life cycle: It runs when charging the add-on.
+     * Here we record the callback of the back button.
+     */
+    @Override
+    public void load() {
+        super.load();
+
+        backPressedCallback = new OnBackPressedCallback(false) {
+            @Override
+            public void handleOnBackPressed() {
+                StartAppAd.onBackPressed(getActivity());
+
+                setEnabled(false);
+
+                if (getActivity() != null) {
+                    getActivity().getOnBackPressedDispatcher().onBackPressed();
+                }
+
+                if (isExitAdEnabled) {
+                    setEnabled(true);
+                }
+            }
+        };
+
+        getActivity().getOnBackPressedDispatcher().addCallback(getActivity(), backPressedCallback);
+    }
 
     /**
      * 
@@ -50,6 +79,8 @@ public class StartioAdsPlugin extends Plugin {
             return;
         }
         boolean returnAd = call.getBoolean("returnAd", Boolean.FALSE);
+        boolean enableTest = call.getBoolean("enableTest", Boolean.TRUE);
+        StartAppSDK.setTestAdsEnabled(enableTest);
 
         StartAppSDK.init(getContext().getApplicationContext(), appId, returnAd);
         call.resolve();
@@ -119,39 +150,37 @@ public class StartioAdsPlugin extends Plugin {
     // --- Enable Exit Ad
     @PluginMethod
     public void enableExitAd(PluginCall call) {
-        // Enable the flag so that handleOnBackPressed() can display the Exit Ad
-        exitAdEnabled = true;
-        call.resolve();
+        isExitAdEnabled = true;
+        getActivity().runOnUiThread(() -> {
+            if (backPressedCallback != null) {
+                backPressedCallback.setEnabled(true);
+            }
+            call.resolve();
+        });
     }
 
     // --- Disable Exit Ad
     @PluginMethod
     public void disableExitAd(PluginCall call) {
-        // Disable the flag so that handleOnBackPressed() ignores the Exit Ad logic
-        exitAdEnabled = false;
-        call.resolve();
-    }
-
-    // --- Overwrites Capacitor's back button handling
-    @Override
-    public void handleOnBackPressed() {
-        if (exitAdEnabled) {
-            if (StartAppAd.onBackPressed(getActivity())) {
-                return;
+        isExitAdEnabled = false;
+        getActivity().runOnUiThread(() -> {
+            if (backPressedCallback != null) {
+                backPressedCallback.setEnabled(false);
             }
-        }
-
-        super.handleOnBackPressed();
+            call.resolve();
+        });
     }
 
     // --- Autostitials Ad
     @PluginMethod
-    public void autoInterstitial(PluginCall call) {
+    public void autoInterstitialAd(PluginCall call) {
         boolean enabled = call.getBoolean("enabled", Boolean.FALSE);
 
         getActivity().runOnUiThread(() -> {
             if (enabled) {
                 StartAppAd.enableAutoInterstitial();
+            } else {
+                StartAppAd.disableAutoInterstitial();
             }
             call.resolve();
         });
@@ -161,7 +190,7 @@ public class StartioAdsPlugin extends Plugin {
     // Note: Hybric frameworks "Activity change" is limited (since there is only one
     // native activity)
     @PluginMethod
-    public void interstitialTimeFrequency(PluginCall call) {
+    public void interstitialTimeFrequencyAd(PluginCall call) {
         getActivity().runOnUiThread(() -> {
             AutoInterstitialPreferences preferences = new AutoInterstitialPreferences();
             boolean settingApplied = false;
@@ -366,24 +395,32 @@ public class StartioAdsPlugin extends Plugin {
         getActivity().runOnUiThread(() -> {
             StartAppNativeAd nativeAd = new StartAppNativeAd(getActivity());
 
+            NativeAdPreferences prefs = new NativeAdPreferences()
+                    .setAdsNumber(3)
+                    .setAutoBitmapDownload(
+                            false)
+                    .setPrimaryImageSize(2);
+
             AdEventListener adNativeListener = new AdEventListener() {
                 @Override
                 public void onReceiveAd(Ad ad) {
                     try {
-                        // StartAppNativeAd loadedAd = (StartAppNativeAd) ad;
                         ArrayList<NativeAdDetails> nativeAds = nativeAd.getNativeAds();
-                        NativeAdDetails nativeAdDetails = nativeAds.get(0);
+                        if (nativeAds != null && nativeAds.size() > 0) {
+                            NativeAdDetails nativeAdDetails = nativeAds.get(0);
 
-                        JSObject adData = new JSObject();
-                        adData.put("title", nativeAdDetails.getTitle());
-                        adData.put("description", nativeAdDetails.getDescription());
-                        adData.put("imageUrl", nativeAdDetails.getImageUrl());
-                        adData.put("iconUrl", nativeAdDetails.getSecondaryImageUrl());
-                        adData.put("rating", nativeAdDetails.getRating());
-                        adData.put("callToAction", nativeAdDetails.getCallToAction());
+                            JSObject adData = new JSObject();
+                            adData.put("title", nativeAdDetails.getTitle());
+                            adData.put("description", nativeAdDetails.getDescription());
+                            adData.put("imageUrl", nativeAdDetails.getImageUrl());
+                            adData.put("iconUrl", nativeAdDetails.getSecondaryImageUrl());
+                            adData.put("rating", nativeAdDetails.getRating());
+                            adData.put("callToAction", nativeAdDetails.getCallToAction());
 
-                        call.resolve(adData);
-
+                            call.resolve(adData);
+                        } else {
+                            call.reject("Code 11: Native ad received but list is empty.");
+                        }
                     } catch (Exception e) {
                         call.reject("Code 9: Error processing native ad: " + e.getMessage());
                     }
@@ -392,11 +429,13 @@ public class StartioAdsPlugin extends Plugin {
                 @Override
                 public void onFailedToReceiveAd(Ad ad) {
                     String error = ad != null ? ad.getErrorMessage() : "Unknown error";
+                    // Android Studio Logcat
+                    android.util.Log.e("StartioAds", "Native Ad Failed: " + error);
                     call.reject("Code 10: Error loading Native Ad: " + error);
                 }
             };
 
-            nativeAd.loadAd(new NativeAdPreferences(), adNativeListener);
+            nativeAd.loadAd(prefs, adNativeListener);
         });
     }
 
