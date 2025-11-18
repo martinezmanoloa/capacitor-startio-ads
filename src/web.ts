@@ -24,11 +24,11 @@ export class StartioAdsWeb extends WebPlugin implements StartioAdsPlugin {
     console.warn('Start.io Ads is not available on the web');
   }
 
-  async autoInterstitial(options: { enabled: boolean }): Promise<void> {
+  async autoInterstitialAd(options: { enabled: boolean }): Promise<void> {
     console.warn('Start.io Ads is not available on the web', options);
   }
 
-  async interstitialTimeFrequency(options: {
+  async interstitialTimeFrequencyAd(options: {
     secondsBetweenAds?: number;
     activitiesBetweenAds?: number;
   }): Promise<void> {
