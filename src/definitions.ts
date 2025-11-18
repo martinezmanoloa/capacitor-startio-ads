@@ -68,6 +68,10 @@ export interface StartioAdsPlugin {
      * @default false
      */
     returnAd?: boolean;
+    /**
+     * @default true
+     */
+    enableTest?: boolean;
   }): Promise<void>;
 
   // --- Interstitials ---
@@ -98,12 +102,12 @@ export interface StartioAdsPlugin {
   /**
    * Enables or disables Autostitial Ads.
    */
-  autoInterstitial(options: { enabled: boolean }): Promise<void>;
+  autoInterstitialAd(options: { enabled: boolean }): Promise<void>;
 
   /**
    * Sets the time or activity frequency for Autostitial Ads.
    */
-  interstitialTimeFrequency(options: {
+  interstitialTimeFrequencyAd(options: {
     /**
      * Minimum time interval between ads (in seconds).
      */
