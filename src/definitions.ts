@@ -22,6 +22,34 @@ export interface AdViewOptions {
    * @default "BOTTOM"
    */
   position?: 'TOP' | 'BOTTOM';
+
+  /**
+   * Margin from the left in pixels.
+   * Useful to lift the banner above the TabBar.
+   * @default 0
+   */
+  leftMargin?: number;
+
+  /**
+   * Margin from the top in pixels.
+   * Useful to lift the banner above the TabBar.
+   * @default 0
+   */
+  topMargin?: number;
+
+  /**
+   * Margin from the right in pixels.
+   * Useful to lift the banner above the TabBar.
+   * @default 0
+   */
+  rightMargin?: number;
+
+  /**
+   * Margin from the bottom in pixels.
+   * Useful to lift the banner above the TabBar.
+   * @default 0
+   */
+  bottomMargin?: number;
 }
 
 /**
@@ -64,10 +92,12 @@ export interface StartioAdsPlugin {
    */
   initParams(options: {
     appId: string;
+
     /**
      * @default false
      */
     returnAd?: boolean;
+
     /**
      * @default true
      */
@@ -112,6 +142,7 @@ export interface StartioAdsPlugin {
      * Minimum time interval between ads (in seconds).
      */
     secondsBetweenAds?: number;
+
     /**
      * Minimum number of activities between ads.
      */

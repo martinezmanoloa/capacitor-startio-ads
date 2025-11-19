@@ -224,6 +224,10 @@ public class StartioAdsPlugin extends Plugin {
     @PluginMethod
     public void showBannerAd(PluginCall call) {
         String position = call.getString("position", "BOTTOM");
+        Integer leftMargin = call.getInt("leftMargin", 0);
+        Integer topMargin = call.getInt("topMargin", 0);
+        Integer rightMargin = call.getInt("rightMargin", 0);
+        Integer bottomMargin = call.getInt("bottomMargin", 0);
 
         getActivity().runOnUiThread(() -> {
             getAdViewContainer();
@@ -247,6 +251,8 @@ public class StartioAdsPlugin extends Plugin {
                 bannerParams.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
             }
 
+            // (Left, Top, Right, Bottom)
+            bannerParams.setMargins(leftMargin, topMargin, rightMargin, bottomMargin);
             adViewContainer.addView(bannerView, bannerParams);
             call.resolve();
         });
@@ -346,6 +352,10 @@ public class StartioAdsPlugin extends Plugin {
     @PluginMethod
     public void showMrec(PluginCall call) {
         String position = call.getString("position", "BOTTOM");
+        Integer leftMargin = call.getInt("leftMargin", 0);
+        Integer topMargin = call.getInt("topMargin", 0);
+        Integer rightMargin = call.getInt("rightMargin", 0);
+        Integer bottomMargin = call.getInt("bottomMargin", 0);
 
         getActivity().runOnUiThread(() -> {
             getAdViewContainer();
@@ -368,6 +378,8 @@ public class StartioAdsPlugin extends Plugin {
                 mrecParams.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
             }
 
+            // (Left, Top, Right, Bottom)
+            mrecParams.setMargins(leftMargin, topMargin, rightMargin, bottomMargin);
             adViewContainer.addView(mrecView, mrecParams);
             call.resolve();
         });
