@@ -1,6 +1,6 @@
 {
   "name": "@martinezmanoloa/capacitor-startio-ads",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Capacitor plugin for SDK start.io",
   "main": "dist/plugin.cjs.js",
   "module": "dist/esm/index.js",
