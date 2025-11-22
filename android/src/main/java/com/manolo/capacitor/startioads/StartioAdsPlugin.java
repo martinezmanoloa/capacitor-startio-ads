@@ -75,7 +75,7 @@ public class StartioAdsPlugin extends Plugin {
         String appId = call.getString("appId");
 
         if (appId == null || appId.isEmpty()) {
-            call.reject("Code 1: Missed 'appId' from Start.io");
+            call.reject("Missed 'appId' from Start.io", "1");
             return;
         }
         boolean returnAd = call.getBoolean("returnAd", Boolean.FALSE);
@@ -107,7 +107,7 @@ public class StartioAdsPlugin extends Plugin {
                 @Override
                 public void onFailedToReceiveAd(Ad ad) {
                     String error = ad != null ? ad.getErrorMessage() : "Unknown error";
-                    call.reject("Code 2: Error loading Interstitial Ad: " + error);
+                    call.reject("Error loading Interstitial Ad: " + error, "2");
                 }
             });
         });
@@ -137,12 +137,12 @@ public class StartioAdsPlugin extends Plugin {
 
                     @Override
                     public void adNotDisplayed(Ad ad) {
-                        call.reject("Code 3: The Interstitial Ad could not be displayed " + ad.getErrorMessage());
+                        call.reject("The Interstitial Ad could not be displayed " + ad.getErrorMessage(), "3");
                     }
                 });
                 call.resolve();
             } else {
-                call.reject("Code 4: The interstitial ad is not ready. Please first call 'loadInterstitialAd'.");
+                call.reject("The interstitial ad is not ready. Please first call 'loadInterstitialAd'.", "4");
             }
         });
     }
@@ -212,7 +212,7 @@ public class StartioAdsPlugin extends Plugin {
                 call.resolve();
             } else {
                 call.reject(
-                        "Code 5: You must provide 'secondsBetweenAds' or 'activitiesBetweenAds' with a positive value");
+                        "You must provide 'secondsBetweenAds' or 'activitiesBetweenAds' with a positive value", "5");
             }
         });
     }
@@ -300,7 +300,7 @@ public class StartioAdsPlugin extends Plugin {
                     JSObject ret = new JSObject();
                     ret.put("error", error);
                     notifyListeners("rewardedVideoFailed", ret, true);
-                    call.reject("Code 6: Error loading rewarded ad: " + error);
+                    call.reject("Error loading rewarded ad: " + error,  "6");
                 }
             };
 
@@ -332,7 +332,7 @@ public class StartioAdsPlugin extends Plugin {
                     @Override
                     public void adNotDisplayed(Ad ad) {
                         String error = ad != null ? ad.getErrorMessage() : "Unknown error";
-                        call.reject("Code 7: The ad could not be displayed: " + error);
+                        call.reject("The ad could not be displayed: " + error, "7");
                     }
                 };
 
@@ -340,7 +340,7 @@ public class StartioAdsPlugin extends Plugin {
                 call.resolve();
 
             } else {
-                call.reject("Code 8: The rewarded ad isn't ready. Did you call 'loadRewarded' first?");
+                call.reject("The rewarded ad isn't ready. Did you call 'loadRewarded' first?", "8");
             }
         });
     }
@@ -431,10 +431,10 @@ public class StartioAdsPlugin extends Plugin {
 
                             call.resolve(adData);
                         } else {
-                            call.reject("Code 11: Native ad received but list is empty.");
+                            call.reject("Native ad received but list is empty.", "11");
                         }
                     } catch (Exception e) {
-                        call.reject("Code 9: Error processing native ad: " + e.getMessage());
+                        call.reject("Error processing native ad: " + e.getMessage(), "9");
                     }
                 }
 
@@ -443,7 +443,7 @@ public class StartioAdsPlugin extends Plugin {
                     String error = ad != null ? ad.getErrorMessage() : "Unknown error";
                     // Android Studio Logcat
                     android.util.Log.e("StartioAds", "Native Ad Failed: " + error);
-                    call.reject("Code 10: Error loading Native Ad: " + error);
+                    call.reject("Error loading Native Ad: " + error, "10");
                 }
             };
 
